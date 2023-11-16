@@ -25,6 +25,8 @@ app.get("/ping", (req, res) => {
     res.send("Pong");
 });
 
+app.get("/pokemon", (req, res) => {res.send("Pikachu");})
+
 app.use('/api', destinoRoutes);
 app.use('/api', clienteRoutes);
 app.use('/api', usuarioRoutes);
