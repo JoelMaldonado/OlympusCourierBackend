@@ -8,16 +8,64 @@ const listarTodos = async (req, res) => {
             repartos.map(async (reparto) => {
                 const queryItems = 'SELECT * FROM item_reparto WHERE id_reparto = ?';
                 const items = await db.query(queryItems, [reparto.id]);
-                return { ...reparto, items, total: parseFloat(reparto.total) };
+                const cliente = await getCliente(reparto.id_cliente);
+                const usuario = await getUsuario(reparto.id_usuario);
+                return {
+                    id: reparto.id,
+                    anotacion: reparto.anotacion,
+                    clave: reparto.clave,
+                    estado: reparto.estado,
+                    fecha_creacion: reparto.fecha_creacion,
+                    fecha_entrega: reparto.fecha_entrega,
+                    id_cliente: reparto.id_cliente,
+                    cliente,
+                    id_usuario: reparto.id_usuario,
+                    usuario,
+                    id_repartidor: reparto.id_repartidor,
+                    items,
+                    total: parseFloat(reparto.total)
+                };
             })
         );
-
         res.json(repartosConItems);
     } catch (error) {
         console.error('Error al recuperar datos de las tablas Repartos e item_reparto:', error);
         res.status(500).json({ error: 'Ocurrió un error al obtener los datos de las tablas Repartos e item_reparto' });
     }
 };
+
+const getCliente = async (id) => {
+    try {
+        const query = 'SELECT * FROM clientes WHERE id = ? LIMIT 1';
+        const resultado = await db.query(query, [id]);
+        if (resultado.length === 1) {
+            const { tipo_doc, documento, nombres, telefono, correo, genero, distrito_id, direc, referencia } = resultado[0];
+            return { tipo_doc, documento, nombres, telefono, correo, genero, distrito_id, direc, referencia };
+        } else if (resultado.length === 0) {
+            return null;
+        } else {
+            return null;
+        }
+    } catch (error) {
+        return null;
+    }
+}
+const getUsuario = async (id) => {
+    try {
+        const query = 'SELECT * FROM usuarios WHERE id = ? LIMIT 1';
+        const resultado = await db.query(query, [id]);
+        if (resultado.length === 1) {
+            const { documento, nombres, ape_materno, ape_paterno, telefono, correo, rol } = resultado[0];
+            return { documento, nombres, ape_materno, ape_paterno, telefono, correo, rol };
+        } else if (resultado.length === 0) {
+            return null;
+        } else {
+            return null;
+        }
+    } catch (error) {
+        return null;
+    }
+}
 
 const insertar = async (req, res) => {
     try {
@@ -116,4 +164,4 @@ const eliminar = async (req, res) => {
         res.status(500).json({ error: 'Ocurrió un error al intentar eliminar el reparto y sus elementos relacionados' });
     }
 };
-module.exports =  { listarTodos, insertar, actualizar, eliminar }
+module.exports = { listarTodos, insertar, actualizar, eliminar }
