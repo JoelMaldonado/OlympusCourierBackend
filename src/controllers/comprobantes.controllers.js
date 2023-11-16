@@ -1,25 +1,84 @@
 const { db } = require('../mysql.js');
 const axios = require("axios");
 
-const listarTodos = (req, res) => {
-
-};
-const insertar = async (req, res) => {
-
+const listarTodos = async (req, res) => {
     try {
-        const url = 'https://api.nubefact.com/api/v1/c16ea3cf-bad1-4d36-a449-df085ee5aadb'
-        const token = '7b3c966149524842b2af262bba5f6da0a783250cb5d946e29b37bef8abed1cd5'
+        const query = 'SELECT * FROM comprobantes';
+        const destinos = await db.query(query);
+        res.json(destinos);
+    } catch (error) {
+        console.error('Error al recuperar datos de la tabla Comprobantes:', error);
+        res.status(500).json({ error: 'Ocurrió un error al obtener los datos de la tabla Comprobantes' });
+    }
+};
+
+
+const insertar = async (req, res) => {
+    try {
+
+        const { tipoComprobante, tipoDoc, documento, nombre, direc, correo, items, idReparto } = req.body;
+        if (!Array.isArray(items)) {
+            console.error('El campo "items" no es una lista.');
+            res.status(400).json({ error: 'El campo "items" debe ser una lista.' });
+            return;
+        }
+
+        if (items.length == 0) {
+            res.status(404).json({ error: 'Minimo debe haber un item' });
+            return;
+        }
+
+        const itemsNubefact = []
+
+        items.forEach(item => {
+            const precioUn = item.precio / 1.18
+            const igv = item.precio - precioUn;
+            itemsNubefact.push(
+                {
+                    "unidad_de_medida": "ZZ",
+                    "codigo": item.id,
+                    "codigo_producto_sunat": "",
+                    "descripcion": `SERVICIO REPARTO A DOMICILIO DE ${item.cant} Cajas`,
+                    "cantidad": 1,
+                    "valor_unitario": precioUn,
+                    "precio_unitario": item.precio,
+                    "descuento": "",
+                    "subtotal": precioUn,
+                    "tipo_de_igv": 1,
+                    "igv": igv,
+                    "total": item.precio,
+                    "anticipo_regularizacion": false,
+                    "anticipo_documento_serie": "",
+                    "anticipo_documento_numero": ""
+                })
+        });
+
+        const total = itemsNubefact.reduce((total, currentItem) => total + currentItem.total, 0);
+        const montoBase = total / 1.18
+        const mongoIgv = total - montoBase;
+
+        let serie = '';
+
+        if(tipoComprobante == 1){
+            serie = 'FFF1';
+        }else if(tipoComprobante == 2){
+            serie = 'BBB1'
+        }
+        const query = 'SELECT IFNULL(MAX(numero) + 1, 1) AS numero FROM comprobantes WHERE tipo_comprobante = ?'
+        const [{numero}] = await db.query(query, [tipoComprobante]);
+        const url = 'https://api.pse.pe/api/v1/6baf3f2f6c284defa9cf148782cdb136f19c6f2ec1b84e8eb9f4144f67df2145'
+        const token = 'eyJhbGciOiJIUzI1NiJ9.ImMzYTljNmI5YWJlZTQ0ZDFiMjExZmRlMzIxNTE1ZDRhM2VkODFlMDQ1OTkyNDMyZDk3NTI2NjVjMDY2NDEzZGUi.oRgBsVpXqZlgJ1OPBQd0TpLEyeFrtWppa2vE92GjYA0'
         const data = {
             "operacion": "generar_comprobante",
-            "tipo_de_comprobante": 1,
-            "serie": "FFF1",
-            "numero": 3,
+            "tipo_de_comprobante": tipoComprobante,
+            "serie": serie,
+            "numero": numero,
             "sunat_transaction": 1,
-            "cliente_tipo_de_documento": 6,
-            "cliente_numero_de_documento": "10744555189",
-            "cliente_denominacion": "Maria Ronsangela",
-            "cliente_direccion": "Pedro Moreno",
-            "cliente_email": "tucliente@gmail.com",
+            "cliente_tipo_de_documento": tipoDoc,
+            "cliente_numero_de_documento": documento,
+            "cliente_denominacion": nombre,
+            "cliente_direccion": direc,
+            "cliente_email": correo,
             "cliente_email_1": "",
             "cliente_email_2": "",
             "fecha_de_emision": getFechaEmision(),
@@ -30,13 +89,13 @@ const insertar = async (req, res) => {
             "descuento_global": "",
             "total_descuento": "",
             "total_anticipo": "",
-            "total_gravada": 600,
+            "total_gravada": montoBase,
             "total_inafecta": "",
             "total_exonerada": "",
-            "total_igv": 108,
+            "total_igv": mongoIgv,
             "total_gratuita": "",
             "total_otros_cargos": "",
-            "total": 708,
+            "total": total,
             "percepcion_tipo": "",
             "percepcion_base_imponible": "",
             "total_percepcion": "",
@@ -62,29 +121,9 @@ const insertar = async (req, res) => {
             "generado_por_contingencia": "",
             "bienes_region_selva": "",
             "servicios_region_selva": "",
-            "items": [
-                {
-                    "unidad_de_medida": "ZZ",
-                    "codigo": "001",
-                    "codigo_producto_sunat": "20000000",
-                    "descripcion": "DETALLE DEL SERVICIO",
-                    "cantidad": 5,
-                    "valor_unitario": 20,
-                    "precio_unitario": 23.60,
-                    "descuento": "",
-                    "subtotal": 100,
-                    "tipo_de_igv": 1,
-                    "igv": 18,
-                    "total": 118,
-                    "anticipo_regularizacion": false,
-                    "anticipo_documento_serie": "",
-                    "anticipo_documento_numero": ""
-                }
-            ],
-            "guias": [
-            ],
-            "venta_al_credito": [
-            ]
+            "items": itemsNubefact,
+            "guias": [],
+            "venta_al_credito": []
         }
 
         const headers = {
@@ -94,18 +133,22 @@ const insertar = async (req, res) => {
 
 
         const call = await axios.post(url, data, { headers });
-        const datos = call.data;
-        res.json({ datos });
+        if (call.data) {
+            const { tipo_de_comprobante, serie, numero, enlace, enlace_del_pdf, enlace_del_xml } = call.data;
+
+            const query = 'INSERT INTO comprobantes (tipo_comprobante,serie,numero,enlace,enlace_pdf,enlace_xml,id_reparto) VALUES (?,?,?,?,?,?,?)'
+            const result = await db.query(query, [tipo_de_comprobante, serie, numero, enlace, enlace_del_pdf, enlace_del_xml, idReparto]);
+            if (result.affectedRows === 1) {
+                res.json({ message: 'Comprobante insertado correctamente' });
+            } else {
+                res.status(500).json({ error: 'No se pudo insertar el destino' });
+            }
+        } else {
+            res.json({ error: 'Error al generar comprobante' })
+        }
     } catch (error) {
         if (error.response) {
-            console.error('Respuesta de error de la API:', error.response.data);
-            res.status(error.response.status).json(error.response.data);
-        } else if (error.request) {
-            console.error('No se recibió respuesta de la API');
-            res.status(500).json({ error: 'No se recibió respuesta de la API' });
-        } else {
-            console.error('Error durante la configuración de la solicitud:', error.message);
-            res.status(500).json({ error: 'Error durante la configuración de la solicitud' });
+            res.json(error.response.data);
         }
     }
 
@@ -114,7 +157,7 @@ const insertar = async (req, res) => {
 const getFechaEmision = () => {
     const fecha = new Date();
     const dia = String(fecha.getDate()).padStart(2, '0');
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0'); // Se suma 1 porque los meses van de 0 a 11
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
     const anio = fecha.getFullYear();
     return `${dia}-${mes}-${anio}`;
 }
@@ -126,7 +169,7 @@ const eliminar = (req, res) => {
 
 };
 
-module.exports =  {
+module.exports = {
     listarTodos,
     insertar,
     actualizar,

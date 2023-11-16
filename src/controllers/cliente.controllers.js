@@ -32,8 +32,8 @@ const getCliente = async (req, res) => {
 const searchCliente = async (req, res) => {
     try {
         const datos = req.params.datos;
-        const query = 'SELECT * FROM clientes WHERE documento LIKE ? OR nombres LIKE ?';
-        const rows = await db.query(query, [`%${datos}%`, `%${datos}%`]);
+        const query = 'SELECT * FROM clientes WHERE documento LIKE ? OR nombres LIKE ? OR telefono LIKE ?';
+        const rows = await db.query(query, [`%${datos}%`, `%${datos}%`, `%${datos}%`]);
         res.json(rows);
     } catch (error) {
         console.error('Error al buscar clientes:', error);
