@@ -1,13 +1,81 @@
 const { db } = require('../mysql.js');
 
+const tb_usuarios = 'usuarios';
+
+const login = async (req, res) => {
+    const { documento, clave } = req.body;
+
+    if (!documento || !clave) {
+        return res.json({
+            isSuccess: false,
+            mensaje: 'Por favor, proporciona documento y contraseña.'
+        });
+    }
+
+    try {
+        const consulta = `SELECT id FROM ${tb_usuarios} WHERE documento = ? AND clave = ? LIMIT 1`;
+        const [resultados] = await db.query(consulta, [documento, clave]);
+        if (resultados.id) {
+            res.json({
+                isSuccess: true,
+                mensaje: 'Inicio de sesión exitoso',
+                data: resultados.id
+            });
+        } else {
+            res.json({
+                isSuccess: false,
+                mensaje: 'Credenciales incorrectas'
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        res.json({
+            isSuccess: false,
+            mensaje: err
+        });
+    }
+};
+
 const getAllUsuarios = async (req, res) => {
     try {
-        const query = 'SELECT * FROM usuarios';
+        const query = `SELECT * FROM ${tb_usuarios}`;
         const destinos = await db.query(query);
         res.json(destinos);
     } catch (error) {
         console.error('Error al recuperar datos de la tabla Usuarios:', error);
-        res.status(500).json({ error: 'Ocurrió un error al obtener los datos de la tabla Usuarios' });
+        res.json({ error: 'Ocurrió un error al obtener los datos de la tabla Usuarios' });
+    }
+};
+
+const getUsuario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const query = `SELECT * FROM ${tb_usuarios} WHERE id = ? LIMIT 1`;
+        const resultado = await db.query(query, [id]);
+
+        if (resultado.length !== undefined && resultado.length > 0) {
+            const usuario = resultado[0];
+            delete usuario.clave;
+            res.json({
+                isSuccess: true,
+                mensaje: '',
+                data: usuario
+            });
+        } else if (resultado.length !== undefined && resultado.length === 0) {
+            res.json({
+                isSuccess: false,
+                mensaje: 'Usuario no encontrado',
+                data: null
+            });
+        } else {
+            res.json(resultado);
+        }
+    } catch (error) {
+        res.json({
+            isSuccess: false,
+            mensaje: error,
+            data: null
+        });
     }
 };
 
@@ -79,4 +147,4 @@ const deleteUsuario = async (req, res) => {
 }
 
 
-module.exports = { getAllUsuarios, insertUsuario, updateUsuario, deleteUsuario }
+module.exports = { login, getAllUsuarios, getUsuario, insertUsuario, updateUsuario, deleteUsuario }
