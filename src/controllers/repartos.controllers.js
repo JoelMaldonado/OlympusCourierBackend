@@ -142,11 +142,17 @@ const insertar = async (req, res) => {
         const { anotacion, clave, id_cliente, id_usuario, items } = req.body;
 
         if (!Array.isArray(items) || items.some(item => typeof item !== 'object')) {
-            return res.status(400).json({ mensaje: 'El campo "items" debe ser una lista de objetos.' });
+            return res.json({
+                isSuccess: false,
+                mensaje: 'El campo "items" debe ser una lista de objetos.'
+            });
         }
 
         if (items.length === 0) {
-            return res.json({ mensaje: 'No se puede ingresar sin items' });
+            return res.json({
+                isSuccess: false,
+                mensaje: 'No se puede ingresar sin items'
+            });
         }
 
         const total = items.reduce((acumulador, item) => {
@@ -167,16 +173,28 @@ const insertar = async (req, res) => {
                 const result2 = await db.query(query2, [num_guia, detalle, cant, precio, result.insertId, id_tipo_paquete]);
 
                 if (result2.affectedRows !== 1) {
-                    return res.status(500).json({ error: 'No se pudo insertar' });
+                    return res.json({
+                        isSuccess: false,
+                        mensaje: 'No se pudo insertar'
+                    });
                 }
             }
-            res.json({ mensaje: 'Reparto insertado correctamente' });
+            res.json({
+                isSuccess: true,
+                mensaje: 'Reparto insertado correctamente'
+            });
         } else {
-            res.status(500).json({ error: 'No se pudo insertar' });
+            res.json({
+                isSuccess: false,
+                mensaje: 'No se pudo insertar'
+            });
         }
     } catch (error) {
         console.error('Error al insertar un reparto:', error);
-        res.status(500).json({ error: 'Ocurrió un error al insertar el reparto' });
+        res.json({
+            isSuccess: false,
+            mensaje: error
+        });
     }
 };
 
@@ -187,12 +205,21 @@ const darConformidad = async (req, res) => {
         const query = 'UPDATE repartos SET estado = ?, fecha_entrega = ?, id_repartidor = ?, url_foto = ? WHERE id = ?';
         const result = await db.query(query, ['E', fechaActual, id_usuario, url_foto, id_reparto]);
         if (result.affectedRows > 0) {
-            res.json({ isSuccess: true, mensaje: 'Conformidad registrada con éxito' });
+            res.json({
+                isSuccess: true,
+                mensaje: 'Conformidad registrada con éxito'
+            });
         } else {
-            res.json({ isSuccess: false, mensaje: 'No se encontró el reparto con el ID proporcionado' });
+            res.json({
+                isSuccess: false,
+                mensaje: 'No se encontró el reparto con el ID proporcionado'
+            });
         }
     } catch (error) {
-        res.json({ isSuccess: false, mensaje: error });
+        res.json({
+            isSuccess: false,
+            mensaje: error
+        });
     }
 };
 
