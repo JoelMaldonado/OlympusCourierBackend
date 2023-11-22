@@ -14,12 +14,12 @@ const login = async (req, res) => {
 
     try {
         const consulta = `SELECT id FROM ${tb_usuarios} WHERE documento = ? AND clave = ? LIMIT 1`;
-        const [resultados] = await db.query(consulta, [documento, clave]);
-        if (resultados.id) {
+        const resultados = await db.query(consulta, [documento, clave]);
+        if (resultados.length > 0) {
             res.json({
                 isSuccess: true,
                 mensaje: 'Inicio de sesión exitoso',
-                data: resultados.id
+                data: resultados[0].id
             });
         } else {
             res.json({

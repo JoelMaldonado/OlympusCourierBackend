@@ -10,6 +10,7 @@ const listarTodos = async (req, res) => {
                 const items = await db.query(queryItems, [reparto.id]);
                 const cliente = await getCliente(reparto.id_cliente);
                 const usuario = await getUsuario(reparto.id_usuario);
+                const repartidor = await getUsuario(reparto.id_repartidor);
                 return {
                     id: reparto.id,
                     anotacion: reparto.anotacion,
@@ -22,6 +23,7 @@ const listarTodos = async (req, res) => {
                     id_usuario: reparto.id_usuario,
                     usuario,
                     id_repartidor: reparto.id_repartidor,
+                    repartidor,
                     items,
                     total: parseFloat(reparto.total)
                 };
@@ -34,13 +36,81 @@ const listarTodos = async (req, res) => {
     }
 };
 
+const getReparto = async (req, res) => {
+    const repartoId = req.params.id;
+    try {
+        const queryReparto = 'SELECT * FROM repartos WHERE id = ? LIMIT 1';
+        const reparto = await db.query(queryReparto, [repartoId]);
+
+        if (reparto.length === 0) {
+            res.status(404).json({ mensaje: 'Reparto no encontrado' });
+            return;
+        }
+
+        const repartoConItems = {
+            id: reparto[0].id,
+            anotacion: reparto[0].anotacion,
+            clave: reparto[0].clave,
+            estado: reparto[0].estado,
+            fecha_creacion: reparto[0].fecha_creacion,
+            fecha_entrega: reparto[0].fecha_entrega,
+            id_cliente: reparto[0].id_cliente,
+            cliente: await getCliente(reparto[0].id_cliente),
+            id_usuario: reparto[0].id_usuario,
+            usuario: await getUsuario(reparto[0].id_usuario),
+            id_repartidor: reparto[0].id_repartidor,
+            items: await obtenerItemsPorRepartoId(reparto[0].id),
+            total: parseFloat(reparto[0].total)
+        };
+        res.json(repartoConItems);
+    } catch (error) {
+        console.error('Error al recuperar datos del reparto por ID:', error);
+        res.status(500).json({ error: 'Ocurrió un error al obtener los datos del reparto por ID' });
+    }
+};
+
+const obtenerItemsPorRepartoId = async (repartoId) => {
+    try {
+        const queryItems = 'SELECT * FROM item_reparto WHERE id_reparto = ?';
+        const items = await db.query(queryItems, [repartoId]);
+        return items;
+    } catch (error) {
+        console.error('Error al recuperar datos de los items por ID de reparto:', error);
+        throw new Error('Ocurrió un error al obtener los datos de los items por ID de reparto');
+    }
+};
+
 const getCliente = async (id) => {
     try {
         const query = 'SELECT * FROM clientes WHERE id = ? LIMIT 1';
         const resultado = await db.query(query, [id]);
         if (resultado.length === 1) {
-            const { tipo_doc, documento, nombres, telefono, correo, genero, distrito_id, direc, referencia } = resultado[0];
-            return { tipo_doc, documento, nombres, telefono, correo, genero, distrito_id, direc, referencia };
+            const [distrito] = await db.query('SELECT nombre FROM destinos WHERE id = ? LIMIT 1', [1]);
+            const {
+                tipo_doc,
+                documento,
+                nombres,
+                telefono,
+                correo,
+                genero,
+                distrito_id,
+                direc,
+                referencia,
+                url_maps
+            } = resultado[0];
+            return {
+                tipo_doc,
+                documento,
+                nombres,
+                telefono,
+                correo,
+                genero,
+                distrito_id,
+                distrito: distrito.nombre,
+                direc,
+                referencia,
+                url_maps
+            }
         } else if (resultado.length === 0) {
             return null;
         } else {
@@ -110,6 +180,22 @@ const insertar = async (req, res) => {
     }
 };
 
+const darConformidad = async (req, res) => {
+    try {
+        const { id_reparto, id_usuario, url_foto } = req.body;
+        const fechaActual = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const query = 'UPDATE repartos SET estado = ?, fecha_entrega = ?, id_repartidor = ?, url_foto = ? WHERE id = ?';
+        const result = await db.query(query, ['E', fechaActual, id_usuario, url_foto, id_reparto]);
+        if (result.affectedRows > 0) {
+            res.json({ isSuccess: true, mensaje: 'Conformidad registrada con éxito' });
+        } else {
+            res.json({ isSuccess: false, mensaje: 'No se encontró el reparto con el ID proporcionado' });
+        }
+    } catch (error) {
+        res.json({ isSuccess: false, mensaje: error });
+    }
+};
+
 const actualizar = async (req, res) => {
     const id = req.params.id;
     const { anotacion, clave, id_cliente, id_usuario, items } = req.body;
@@ -164,4 +250,4 @@ const eliminar = async (req, res) => {
         res.status(500).json({ error: 'Ocurrió un error al intentar eliminar el reparto y sus elementos relacionados' });
     }
 };
-module.exports = { listarTodos, insertar, actualizar, eliminar }
+module.exports = { listarTodos, getReparto, insertar, darConformidad, actualizar, eliminar }
