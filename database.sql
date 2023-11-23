@@ -2,7 +2,7 @@ CREATE DATABASE olympus_courier;
 
 USE olympus_courier;
 
-CREATE TABLE destinos (
+CREATE TABLE distrito (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(50)
 );
@@ -23,7 +23,7 @@ CREATE TABLE clientes (
   distrito_id INT DEFAULT 1,
   direc VARCHAR(255) NOT NULL,
   referencia VARCHAR(255) DEFAULT '',
-  FOREIGN KEY (distrito_id) REFERENCES destinos(id)
+  FOREIGN KEY (distrito_id) REFERENCES distrito(id)
 );
 
 CREATE TABLE usuarios (
