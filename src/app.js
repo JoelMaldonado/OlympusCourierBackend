@@ -3,7 +3,7 @@ const cors = require("cors");
 const { db } = require('./mysql.js');
 const dotenv = require('dotenv');
 
-const destinoRoutes = require('./routes/destino.routes.js');
+const distritoRoutes = require('./routes/distrito.routes.js');
 const clienteRoutes = require('./routes/cliente.routes.js');
 const usuarioRoutes = require('./routes/usuarios.routes.js');
 const tipoPaquetesRoutes = require('./routes/tipo_paquetes.routes.js');
@@ -21,7 +21,7 @@ const port = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 
-app.use('/api', destinoRoutes);
+app.use('/api', distritoRoutes);
 app.use('/api', clienteRoutes);
 app.use('/api', usuarioRoutes);
 app.use('/api', tipoPaquetesRoutes);
